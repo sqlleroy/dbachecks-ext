@@ -1,0 +1,7 @@
+[
+    {
+        "TestName": "Valid Job Owner",                        
+        "Instances": "WPG1LSDS01,7221",
+        "Job": ["SSIS Server Maintenance Job"]
+    }
+]
