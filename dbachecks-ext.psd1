@@ -47,12 +47,12 @@
         @{ ModuleName = 'Pester'; ModuleVersion = '4.3.1' },
         @{ ModuleName = 'dbatools'; ModuleVersion = '0.9.410' }
         @{ ModuleName = 'PSFramework'; ModuleVersion = '0.9.23.82' }
-        @{ ModuleName = 'dbachecks'; ModuleVersion = '1.1.157' }
     )
 
     #Functions to export from this module
     # This are the codes in \functions folder
     FunctionsToExport      = @(
-        'Select-DbcChecks'
+        'Skip-DbcCheck',
+        'Repair-DbcCheck'
     )
 }

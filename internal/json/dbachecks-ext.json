@@ -1,5 +1,6 @@
 {
     "Functions": [
-        "functions\\Select-DbcChecks.ps1"
+        "functions\\Skip-DbcCheck.ps1",
+        "functions\\Repair-DbcCheck.ps1"
     ]
 }

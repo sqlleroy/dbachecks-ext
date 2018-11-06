@@ -5,4 +5,4 @@ foreach ($function in $moduleCatalog.Functions) {
 }
 
 # defining defaults
-Set-PSFConfig -FullName dbachecks-ext.ExclusionsFilePath -Value "$PSScriptRoot\config\Exclusions\Exclusions.json"  -Initialize -Description "Exclusion file"
+Set-PSFConfig -FullName dbapolicy.ExclusionsFilePath -Value "$PSScriptRoot\config\Exclusions\Exclusions.json"  -Initialize -Description "Exclusion file"

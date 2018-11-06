@@ -1,4 +1,5 @@
 ﻿$filename = $MyInvocation.MyCommand.Name.Replace(".Tests.ps1", "")
+. $PSScriptRoot/../internal/assertions/Agent.assertions.ps1
 [string[]]$NotContactable = (Get-PSFConfig -Module dbachecks -Name global.notcontactable).Value
 @(Get-Instance).ForEach{
     $Instance = $psitem
@@ -16,6 +17,26 @@
     else {
 
     }
+
+    Describe "Database Mail XPs" -Tags DatabaseMailEnabled, security, $filename {
+        $DatabaseMailEnabled = Get-DbcConfigValue policy.security.DatabaseMailEnabled
+        if ($NotContactable -contains $psitem) {
+            Context "Testing Database Mail XPs on $psitem" {
+                It "Can't Connect to $Psitem" {
+                    $false	|  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+        }
+        else {
+            Context "Testing Testing Database Mail XPs  on $psitem" {
+                It "Testing Database Mail XPs is set to $DatabaseMailEnabled on $psitem" {
+                    Assert-DatabaseMailEnabled -SQLInstance $Psitem -DatabaseMailEnabled $DatabaseMailEnabled 
+                }
+            }
+        }
+    }
+
+
 }
 
 Set-PSFConfig -Module dbachecks -Name global.notcontactable -Value $NotContactable 
@@ -56,28 +77,69 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
             }
             else {
                 Context "Testing SQL Agent is running on $psitem" {
-                    @(Get-DbaService -ComputerName $psitem -Type Agent).ForEach{
-                        It "SQL Agent Should Be running on $($psitem.ComputerName)" {
-                            $psitem.State | Should -Be "Running" -Because 'The agent service is required to run SQL Agent jobs'
+                    $Command = {
+                        Param (
+                            $Sqlconn,
+                            $ComputerName,
+                            $Instance,
+                            $ServiceName,
+                            $CurrentSetting,
+                            $TargetSetting
+                        )
+                        $Service= $Sqlconn | Where-Object { $_.ComputerName -eq $ComputerName -and 
+                                                            $_.InstanceName -eq $Instance
+                                                            $_.ServiceName -eq $ServiceName
                         }
-                        if ($connectioncheck.IsClustered) {
-                            It "SQL Agent service should have a start mode of Manual on FailOver Clustered Instance $($psitem.ComputerName)" {
-                                $psitem.StartMode | Should -Be "Manual" -Because 'Clustered Instances required that the Agent service is set to manual'
-                            }
-                        }
-                        else {
-                            It "SQL Agent service should have a start mode of Automatic on standalone instance $($psitem.ComputerName)" {
-                                $psitem.StartMode | Should -Be "Automatic" -Because 'Otherwise the Agent Jobs wont run if the server is restarted'
+
+                        If ($CurrentSetting -ne $TargetSetting) {
+                            Switch ($TargetSetting) {
+                                "Running" {$Service.Start()}
+                                "Manual" {$Service.ChangeStartMode("Manual")}
+                                "Automatic" {$Service.ChangeStartMode("Automatic")}
                             }
                         }
 
+                        return $Service.State -eq "Running"                     
+                    }
+                    $TestCases = Get-DbaService -ComputerName "WPG1LSDS01" -Type Agent | ForEach {
+                        @{ 
+                            InputObject = $_                            
+                            Target = $_.ServiceName
+                            Type = "Agent"                            
+                            SqlInstance = $_.ComputerName + "\" + $_.InstanceName 
+                            Fix = @{
+                                Command = $Command
+                                Params = ($_ , $_.ComputerName, $_.InstanceName, $_.ServiceName, $_.State, "Running")
+                            }                       
+                        }
+                    }
+                    It -TestCases $TestCases "SQL Agent Should Be running on <SqlInstance>" {
+                        Param (
+                            $InputObject, $SqlInstance, $Target, $Type, $Fix
+                        )
+                        $InputObject.State | Should -Be "Running" -Because 'The agent service is required to run SQL Agent jobs'
+                    }
+                    if ($connectioncheck.IsClustered) {
+                        It -TestCases $ClusteredTestCases "SQL Agent service should have a start mode of Manual on FailOver Clustered Instance <SqlInstance>" {
+                            Param (
+                                $InputObject, $SqlInstance, $Target, $Type, $Fix
+                            )
+                            $InputObject.StartMode | Should -Be "Manual" -Because 'Clustered Instances required that the Agent service is set to manual'
+                        }
+                    }
+                    else {
+                        It -TestCases $StartModeTestCases "SQL Agent service should have a start mode of Automatic on standalone instance <SqlInstance>" {
+                            Param (
+                                $InputObject, $SqlInstance, $Target, $Type, $Fix
+                            )
+                            $InputObject.StartMode | Should -Be "Automatic" -Because 'Otherwise the Agent Jobs wont run if the server is restarted'
+                        }
                     }
                 }
             }
         }
     }
 }
-
 Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
     @(Get-Instance).ForEach{
         if ($NotContactable -contains $psitem) {
@@ -155,7 +217,7 @@ Describe "Failsafe Operator" -Tags FailsafeOperator, Operator, $filename {
                 Context "Testing failsafe operator exists on $psitem" {
                     $failsafeoperator = Get-DbcConfigValue agent.failsafeoperator
                     It "failsafe operator on $psitem exists" {
-                        (Connect-DbaInstance -SqlInstance $psitem).JobServer.AlertSystem.FailSafeOperator | Should -Be $failsafeoperator -Because 'The failsafe operator will ensure that any job failures will be notifed to someone if not set explicitly'
+                        (Connect-DbaInstance -SqlInstance $psitem).JobServer.AlertSystem.FailSafeOperator | Should -Be $failsafeoperator -Because 'The failsafe operator will ensure that any job failures will be notified to someone if not set explicitly'
                     }
                 }
             }
@@ -244,7 +306,7 @@ Describe "Failed Jobs" -Tags FailedJob, $filename {
         }
     }
 }
-
+# Set-DbcConfig app.sqlinstance "WPG1LSDS01,7221"
 Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
     [string[]]$targetowner = Get-DbcConfigValue agent.validjobowner.name
     @(Get-Instance).ForEach{
@@ -273,38 +335,38 @@ Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
             }
             else {
                 Context "Testing job owners on $psitem" {
-                    $fix = {
+                    $Command = {
                         Param (
-                            $SqlInstance,
-                            $Database,
-                            $TargetOwner
+                            $Sqlconn,
+                            $jobName,                            
+                            $targetowner
                         )
-                        $db = Get-SqlAgentJob -ServerInstance $SqlInstance
-                        $db.OwnerLoginName = $TargetOwner
-                        $db.Alter()
-                        return $db.OwnerLoginName -eq $TargetOwner
+                        $Job = $Sqlconn.JobServer.Jobs | where-object {$_.Name -eq $jobName}                        
+                        $Job.OwnerLoginName = $targetowner
+                        $Job.Alter()                       
+                        return $Job.OwnerLoginName -eq $targetowner
                     }
                     $TestCases = Get-DbaAgentJob -SqlInstance $psitem -EnableException:$false | ForEach {
                         @{ 
                             InputObject = $_
-                            InstanceObject = $connectioncheck
+                            # InstanceObject = $connectioncheck
                             Target = $_.Name
                             Type = "Job"
                             JobOwner = $_.OwnerLoginName
                             SqlInstance = $_.SqlInstance
                             Fix = @{
-                                Command = $fix
-                                Params = ( $_.SqlInstance, $_.Database, $_.ServerCollation )
+                                Command = $Command
+                                Params = ($connectioncheck, $_.Name, $targetowner[0])
                             }                       
                         } 
                     }
-                    It -TestCases $TestCases "Job <ObjectName> - owner <JobOwner> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <SqlInstance>" {
+                    It -TestCases $TestCases "Job <Target> - owner <JobOwner> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <SqlInstance>" {
                         Param (
-                            $InputObject, $InstanceObject, $Target, $Type, $Fix
+                            $InputObject, $SqlInstance, $Target, $Type, $Fix
                         )
                         $InputObject.OwnerLoginName | Should -BeIn $TargetOwner -Because "The account that is the job owner is not what was expected"
-                        
                     }
+                        
                 }
             }
         }
@@ -395,8 +457,8 @@ Describe "Agent Alerts" -Tags AgentAlert, $filename {
 # SIG # Begin signature block
 # MIINEAYJKoZIhvcNAQcCoIINATCCDP0CAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU0NYYiEi0I+QjB/y9F2+Ijh/D
-# tHGgggpSMIIFGjCCBAKgAwIBAgIQAsF1KHTVwoQxhSrYoGRpyjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUS3BQQfhFX8N9zCc5rEfchMOJ
+# Kr2gggpSMIIFGjCCBAKgAwIBAgIQAsF1KHTVwoQxhSrYoGRpyjANBgkqhkiG9w0B
 # AQsFADByMQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYD
 # VQQLExB3d3cuZGlnaWNlcnQuY29tMTEwLwYDVQQDEyhEaWdpQ2VydCBTSEEyIEFz
 # c3VyZWQgSUQgQ29kZSBTaWduaW5nIENBMB4XDTE3MDUwOTAwMDAwMFoXDTIwMDUx
@@ -456,11 +518,11 @@ Describe "Agent Alerts" -Tags AgentAlert, $filename {
 # EyhEaWdpQ2VydCBTSEEyIEFzc3VyZWQgSUQgQ29kZSBTaWduaW5nIENBAhACwXUo
 # dNXChDGFKtigZGnKMAkGBSsOAwIaBQCgeDAYBgorBgEEAYI3AgEMMQowCKACgACh
 # AoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAM
-# BgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJBDEWBBSfNlCEqwxZejWcp715+pzuHSlN
-# gDANBgkqhkiG9w0BAQEFAASCAQAXhosDkoSNAOy2eCip7evaoGH2vlYX5euOZz+a
-# 4Y3+Qao0MNFwtGlQ+UGmr+MrIlx5/I65CCKO+tTvnPdbLBJloxle4nm2eLve1jOh
-# ghRY2KPisdv9JbfbvYvR0moZxgeYENtqf9vEPLsbjWQqF3R6y2+AcP796WMq+sgx
-# +zH40qJ24bwf6JT/zslLNh9cwSYjXmA2fbGKuhXSIjVgxbq3+UjLkATghA9L9lmh
-# DjyCS6vZkSW4lgCDEDgz+ewKARFsxBAunZEaZCglm5cyYt14OPCUgW7E4FiGJhy4
-# nECOpOri7e2dPXAQN6GJwyycYXisHnhOWNPwNQuZ3WHcpNb1
+# BgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJBDEWBBQk0RUhRz09iMbUv8UEynX0Wqpl
+# AzANBgkqhkiG9w0BAQEFAASCAQCGCGY1z7BjN8OowIMIpaYhU9Y7OFQ8KyP99vv9
+# 33w8sU16VpOhy/fpafkclDQxCDGMebzuOXBbSc8n/Jf7B5VCKfRwaqHwt1UkQdIN
+# 3F3dJz+Juun7gU5Bztibz06cRd4KqR0Rscgns71bw/Q2cFIkjfM2PX9YkFQYPMTP
+# qA0ijxxcfzR1gSkE1D7kTK94n7KPsOKRZ/8eXcI2BrgVz96T8t49ZqOA3nmx49jG
+# H+szEtyR7f/1cCe321OlrLk5ERTGwPkou+0nMN5rJ3+8jrlO9FC7tbYTTugU6yFU
+# D5XpNOgPdySpI+mI54P1UDr2p/48n+MVwEguZP0ExxYlbm6j
 # SIG # End signature block
