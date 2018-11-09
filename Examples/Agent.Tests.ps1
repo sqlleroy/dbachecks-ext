@@ -1,15 +1,14 @@
 ﻿$filename = $MyInvocation.MyCommand.Name.Replace(".Tests.ps1", "")
-. $PSScriptRoot/../internal/assertions/Agent.assertions.ps1
 [string[]]$NotContactable = (Get-PSFConfig -Module dbachecks -Name global.notcontactable).Value
 @(Get-Instance).ForEach{
     $Instance = $psitem
-    try {  
+    try {
         $connectioncheck = Connect-DbaInstance  -SqlInstance $Instance -ErrorAction SilentlyContinue -ErrorVariable errorvar
     }
     catch {
         $NotContactable += $Instance
     }
-                
+
     if (($connectioncheck).Edition -like "Express Edition*") {Return}
     elseif ($null -eq $connectioncheck.version) {
         $NotContactable += $Instance
@@ -30,7 +29,7 @@
         else {
             Context "Testing Testing Database Mail XPs  on $psitem" {
                 It "Testing Database Mail XPs is set to $DatabaseMailEnabled on $psitem" {
-                    Assert-DatabaseMailEnabled -SQLInstance $Psitem -DatabaseMailEnabled $DatabaseMailEnabled 
+                    (Get-DbaSpConfigure -SqlInstance $Psitem -Name DatabaseMailEnabled).ConfiguredValue -eq 1 | Should -Be $DatabaseMailEnabled -Because 'The Database Mail XPs setting should be set correctly'
                 }
             }
         }
@@ -39,7 +38,7 @@
 
 }
 
-Set-PSFConfig -Module dbachecks -Name global.notcontactable -Value $NotContactable 
+Set-PSFConfig -Module dbachecks -Name global.notcontactable -Value $NotContactable
 
 Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filename {
     @(Get-Instance).ForEach{
@@ -66,7 +65,7 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                     Edition = "Express Edition"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 Context "Testing SQL Agent is running on $psitem" {
@@ -86,7 +85,7 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                             $CurrentSetting,
                             $TargetSetting
                         )
-                        $Service= $Sqlconn | Where-Object { $_.ComputerName -eq $ComputerName -and 
+                        $Service= $Sqlconn | Where-Object { $_.ComputerName -eq $ComputerName -and
                                                             $_.InstanceName -eq $Instance
                                                             $_.ServiceName -eq $ServiceName
                         }
@@ -99,18 +98,18 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                             }
                         }
 
-                        return $Service.State -eq "Running"                     
+                        return $Service.State -eq "Running"
                     }
                     $TestCases = Get-DbaService -ComputerName $psitem -Type Agent | ForEach {
-                        @{ 
-                            InputObject = $_                            
+                        @{
+                            InputObject = $_
                             Target = $_.ServiceName
-                            Type = "Agent"                            
-                            SqlInstance = $_.ComputerName + "\" + $_.InstanceName 
+                            Type = "Agent"
+                            SqlInstance = $_.ComputerName + "\" + $_.InstanceName
                             Fix = @{
                                 Command = $Command
                                 Params = ($_ , $_.ComputerName, $_.InstanceName, $_.ServiceName, $_.State, "Running")
-                            }                       
+                            }
                         }
                     }
                     It -TestCases $TestCases "SQL Agent Should Be running on <SqlInstance>" {
@@ -158,7 +157,7 @@ Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
                     $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 It "Can't Connect to $Psitem" {
@@ -206,7 +205,7 @@ Describe "Failsafe Operator" -Tags FailsafeOperator, Operator, $filename {
                     $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 It "Can't Connect to $Psitem" {
@@ -243,7 +242,7 @@ Describe "Database Mail Profile" -Tags DatabaseMailProfile, $filename {
                     $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 It "Can't Connect to $Psitem" {
@@ -280,7 +279,7 @@ Describe "Failed Jobs" -Tags FailedJob, $filename {
                     $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 It "Can't Connect to $Psitem" {
@@ -326,7 +325,7 @@ Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
                     $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 It "Can't Connect to $Psitem" {
@@ -335,38 +334,28 @@ Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
             }
             else {
                 Context "Testing job owners on $psitem" {
-                    $Command = {
-                        Param (
-                            $Sqlconn,
-                            $jobName,                            
-                            $targetowner
-                        )
-                        $Job = $Sqlconn.JobServer.Jobs | where-object {$_.Name -eq $jobName}                        
-                        $Job.OwnerLoginName = $targetowner
-                        $Job.Alter()                       
-                        return $Job.OwnerLoginName -eq $targetowner
+                    $fixBlock = {
+                        $Job = $InstanceObject.JobServer.Jobs | where-object {$_.Name -eq $Target}
+                        $Job.OwnerLoginName = $TargetValue
+                        try {
+                            $Job.Alter()
+                        }
+                        catch {
+                            return $false
+                        }
+                        $Job.Refresh()
+                        return $Job.OwnerLoginName -eq $TargetValue
                     }
-                    $TestCases = Get-DbaAgentJob -SqlInstance $psitem -EnableException:$false | ForEach {
-                        @{ 
-                            InputObject = $_
-                            # InstanceObject = $connectioncheck
-                            Target = $_.Name
-                            Type = "Job"
-                            JobOwner = $_.OwnerLoginName
-                            SqlInstance = $_.SqlInstance
-                            Fix = @{
-                                Command = $Command
-                                Params = ($connectioncheck, $_.Name, $targetowner[0])
-                            }                       
-                        } 
-                    }
-                    It -TestCases $TestCases "Job <Target> - owner <JobOwner> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <SqlInstance>" {
-                        Param (
-                            $InputObject, $SqlInstance, $Target, $Type, $Fix
-                        )
+                    $checkBlock = {
                         $InputObject.OwnerLoginName | Should -BeIn $TargetOwner -Because "The account that is the job owner is not what was expected"
                     }
-                        
+                    $jobs = Get-DbaAgentJob -SqlInstance $psitem -EnableException:$false
+                    $TestCases = $jobs | Get-DbcTestCase -FixBlock $fixBlock -CheckBlock $checkBlock -Property OwnerLoginName -TargetValue $targetowner[0] -Arguments @{
+                        InstanceObject = $connectioncheck
+                        TargetOwner = $targetowner
+                    }
+
+                    It @TestCases "Job <Target> - owner <OwnerLoginName> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <InstanceObject>"
                 }
             }
         }
@@ -400,7 +389,7 @@ Describe "Agent Alerts" -Tags AgentAlert, $filename {
                     $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
                 }
             }
-                    
+
             if (($connectioncheck).Edition -like "Express Edition*") {}
             elseif ($null -eq $connectioncheck.version) {
                 It "Can't Connect to $Psitem" {
@@ -525,4 +514,7 @@ Describe "Agent Alerts" -Tags AgentAlert, $filename {
 # qA0ijxxcfzR1gSkE1D7kTK94n7KPsOKRZ/8eXcI2BrgVz96T8t49ZqOA3nmx49jG
 # H+szEtyR7f/1cCe321OlrLk5ERTGwPkou+0nMN5rJ3+8jrlO9FC7tbYTTugU6yFU
 # D5XpNOgPdySpI+mI54P1UDr2p/48n+MVwEguZP0ExxYlbm6j
+# SIG # End signature block
+# D5XpNOgPdySpI+mI54P1UDr2p/48n+MVwEguZP0ExxYlbm6j
+# SIG # End signature block# D5XpNOgPdySpI+mI54P1UDr2p/48n+MVwEguZP0ExxYlbm6j
 # SIG # End signature block

@@ -10,7 +10,7 @@
     RootModule             = 'dbachecks-ext.psm1'
 
     # Version number of this module.
-    ModuleVersion          = '1.0.0'
+    ModuleVersion          = '0.1.0'
 
     # Author of this module
     Author                 = 'Leandro da Silva'
@@ -44,15 +44,14 @@
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules        = @(
-        @{ ModuleName = 'Pester'; ModuleVersion = '4.3.1' },
-        @{ ModuleName = 'dbatools'; ModuleVersion = '0.9.410' }
-        @{ ModuleName = 'PSFramework'; ModuleVersion = '0.9.23.82' }
+        @{ ModuleName = 'dbachecks'; ModuleVersion = '1.1.160' }
     )
 
     #Functions to export from this module
     # This are the codes in \functions folder
     FunctionsToExport      = @(
         'Skip-DbcCheck',
-        'Repair-DbcCheck'
+        'Repair-DbcCheck',
+        'Get-DbcTestCase'
     )
 }

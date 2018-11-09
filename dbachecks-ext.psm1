@@ -1,8 +1,11 @@
-$moduleCatalog = Get-Content "$PSScriptRoot\internal\json\dbachecks-ext.json" -Raw | ConvertFrom-Json
+#internal functions
+# foreach ($file in (Get-ChildItem "$PSScriptRoot\internal\functions")) {
+#     . $file.FullName
+# }
 
-foreach ($function in $moduleCatalog.Functions) {
-    . "$PSScriptRoot\$function"
+#public functions
+foreach ($file in (Get-ChildItem "$PSScriptRoot\functions")) {
+    . $file.FullName
 }
-
 # defining defaults
 Set-PSFConfig -FullName dbapolicy.ExclusionsFilePath -Value "$PSScriptRoot\config\Exclusions\Exclusions.json"  -Initialize -Description "Exclusion file"
