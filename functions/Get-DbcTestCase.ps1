@@ -24,7 +24,8 @@ function Get-DbcTestCase {
 			# Get type name from the input object if missing
 			if (!$Type) { $Type = $iObject.GetType().Name.Split('.')[-1] }
 			# Get target if not specified
-			if (!$Target) { $Target = [string]$iObject}
+            if ($Target) { $currentTarget = $Target }
+            else { $currentTarget = [string]$iObject}
             # Construct output hashtable
 
 			$testCaseHash = @{ InputObject = $iObject }
@@ -39,7 +40,7 @@ function Get-DbcTestCase {
 				$testCaseHash += @{ Type = $Type }
 			}
 			if ('Target' -notin $testCaseHash.Keys) {
-				$testCaseHash += @{ Target = $Target }
+				$testCaseHash += @{ Target = $currentTarget }
 			}
 
 			if ('TargetValue' -notin $testCaseHash.Keys) {
