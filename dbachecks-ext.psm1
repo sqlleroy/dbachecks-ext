@@ -1,7 +1,7 @@
 #internal functions
-foreach ($file in (Get-ChildItem "$PSScriptRoot\internal\functions")) {
-    . $file.FullName
-}
+# foreach ($file in (Get-ChildItem "$PSScriptRoot\internal\functions")) {
+#     . $file.FullName
+# }
 
 #public functions
 foreach ($file in (Get-ChildItem "$PSScriptRoot\functions")) {

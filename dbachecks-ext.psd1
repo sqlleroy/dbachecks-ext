@@ -51,6 +51,7 @@
     # This are the codes in \functions folder
     FunctionsToExport      = @(
         'Skip-DbcCheck',
-        'Repair-DbcCheck'
+        'Repair-DbcCheck',
+        'Get-DbcTestCase'
     )
 }
