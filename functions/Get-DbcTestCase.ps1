@@ -27,7 +27,7 @@ function Get-DbcTestCase {
 			if (!$Target) { $Target = [string]$iObject}
             # Construct output hashtable
 
-			$testCaseHash = @{ InputObject = $iObject }
+			$testCaseHash = @{ _ = $iObject }
 			$argumentList = @()
 			if ($Property) {
 				$parsedObject = $iObject | Select-PSFObject -Property $Property
