@@ -10,7 +10,7 @@ Function Repair-DbcCheck {
                 $Fix = $TestResult.Parameters.Fix
                 $Describe = $TestResult.Describe
 
-                $PSConfig = Get-PSFConfigValue  -name repair.$Describe
+                $PSConfig = Get-PSFConfigValue -Fullname dbachecks-ext.repair.$Describe
 
                 If ($PSConfig)
                 {

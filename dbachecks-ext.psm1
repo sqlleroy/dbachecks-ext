@@ -13,3 +13,4 @@ Set-PSFConfig -Module dbachecks-ext -Name exclusion.filepath -Value "$PSScriptRo
 
 Set-PSFConfig -Module dbachecks-ext -Name "repair.sql agent account" -Value $true -Initialize -Description "Repair Agent Account Services"
 Set-PSFConfig -Module dbachecks-ext -Name "repair.valid job owner" -Value $true -Initialize -Description "Repair Valid Job Owner"
+Set-PSFConfig -Module dbachecks-ext -Name "repair.dba operators" -Value $true -Initialize -Description "Repair DBA Operators"

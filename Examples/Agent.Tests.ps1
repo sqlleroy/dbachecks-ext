@@ -159,17 +159,52 @@ Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
                 Context "Testing DBA Operators exists on $psitem" {
                     $operatorname = Get-DbcConfigValue agent.dbaoperatorname
                     $operatoremail = Get-DbcConfigValue agent.dbaoperatoremail
-                    $results = Get-DbaAgentOperator -SqlInstance $psitem -Operator $operatorname
-                    @($operatorname).ForEach{
-                        It "operator name $psitem exists" {
-                            $psitem | Should -BeIn $Results.Name -Because 'This Operator is expected to exist'
+
+                    $fixBlock = {
+                        $_.Name = $TargetValue
+                        try {
+                            $_.Alter()
                         }
+                        catch {
+                            return $false
+                        }
+                        $_.Refresh()
+                        return $_.Name -eq $TargetValue
                     }
+                    
+                    $checkBlock = {
+                        $_.Name | Should -BeIn $operatorname -Because 'This Operator is expected to exist'
+                    }
+                    
+                    $AgentOperator = Get-DbaAgentOperator -SqlInstance $psitem -Operator $operatorname
+                    
+                    $TestCases = $AgentOperator | Get-DbcTestCase -FixBlock $fixBlock -CheckBlock $checkBlock -Property Name -TargetValue $operatorname
+                    
+                    @($operatorname).ForEach{
+                        It @TestCases "operator name <Name> exists"
+                    }
+
+                    $fixBlock = {
+                        $_.EmailAddress = $TargetValue
+                        try {
+                            $_.Alter()
+                        }
+                        catch {
+                            return $false
+                        }
+                        $_.Refresh()
+                        return $_.EmailAddress -eq $TargetValue
+                    }
+                    
+                    $checkBlock = {
+                        $_.EmailAddress | Should -BeIn $operatoremail -Because 'This operator email is expected to exist'
+                    }
+                                       
+                    $TestCases = $AgentOperator | Get-DbcTestCase -FixBlock $fixBlock -CheckBlock $checkBlock -Property EmailAddress -TargetValue $operatoremail
+                    $TestCases
                     @($operatoremail).ForEach{
                         if ($operatoremail) {
-                            It "operator email $operatoremail is correct" {
-                                $psitem | Should -Bein $results.EmailAddress -Because 'This operator email is expected to exist'
-                            }
+                            It @TestCases "operator email <EmailAddress> is correct" 
                         }
                     }
                 }
@@ -343,9 +378,10 @@ Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
                     $jobs = Get-DbaAgentJob -SqlInstance $psitem -EnableException:$false
                     $TestCases = $jobs | Get-DbcTestCase -FixBlock $fixBlock -CheckBlock $checkBlock -Property OwnerLoginName -TargetValue $targetowner[0] -Arguments @{
                         TargetOwner = $targetowner
+                        SQLInstance = $psitem
                     }
 
-                    It @TestCases "Job <Target> - owner <OwnerLoginName> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <InstanceObject>"
+                    It @TestCases "Job <Target> - owner <OwnerLoginName> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <SqlInstance>"
                 }
             }
         }
