@@ -52,6 +52,8 @@
     FunctionsToExport      = @(
         'Skip-DbcCheck',
         'Repair-DbcCheck',
-        'Get-DbcTestCase'
+        'Get-DbcTestCase',
+        'Get-DbcRepairValue',
+        'Update-DbcPowerBiDataSource'
     )
 }
