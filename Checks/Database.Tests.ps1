@@ -46,20 +46,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.SetOwner($RepairValue,$true)
+                    [hashtable]$Return = @{} 
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.SetOwner($RepairValue,$true)
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception message to the Repair-DbcCheck function when failing to change the setting                        
+                        $Return.RepairErrorMsg = $_.Exception.Message
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.Owner -eq $RepairValue
+                    $Return.RepairResult = $_.Owner -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -106,20 +108,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.RecoveryModel = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.RecoveryModel = $RepairValue
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.RecoveryModel -eq $RepairValue
+                    $Return.RepairResult = $_.RecoveryModel -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -164,20 +168,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.PageVerify = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.PageVerify = $RepairValue
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message                        
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.PageVerify -eq $RepairValue
+                    $Return.RepairResult = $_.PageVerify -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -226,40 +232,42 @@ $ExcludedDatabases += $ExcludeDatabase
                  # Used on: Repair-DbcCheck function       #
                  # --------------------------------------- #
                  $RepairBlock = {
-                     # Change the setting with desired value from the $RepairValue
-                     $_.AutoClose = $RepairValue
-                     try {
-                         # Effectively changing the setting with $RepairValue
-                         $_.Alter()
-                     }
-                     catch {
-                         # Return $false to the Repair-DbcCheck function when failing to change the setting
-                         return $false
-                     }
-                     # Forcing the setting to reflect the recent change
-                     $_.Refresh()
-                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                     return $_.AutoClose -eq $RepairValue
-                 }
-                 # ------------------------------------------------ #
-                 # Define the Pester check validation for a setting #
-                 # Passed on: Get-DbcTestCase funtion               #
-                 # ------------------------------------------------ #
-                 $CheckBlock = {
-                     $_.AutoClose | Should -Be $ReferenceValue -Because "Because!"
-                 }
-                 # ----------------------------------------------- #
-                 # Current state of a setting to be tested/checked #
-                 # ----------------------------------------------- #
-                 If ($CurrentConfig = ($connectioncheck.Databases.Where{if ($database) {$_.Name -in $database} else {$ExcludedDatabases -notcontains $_.Name}})) {
-                     # --------------------------------------------------------------------- #
-                     # Function Get-DbcTestCase formatting the expected output for TestCases #
-                     # --------------------------------------------------------------------- #
-                     $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property Name -RepairValue $TargetValue -ReferenceValue $autoclose
-                     # ---------------------- #
-                     # Pester check execution #
-                     # ---------------------- #
-                     It @TestCases "<Name> on $_ should have Auto Close set to $autoclose"
+                    [hashtable]$Return = @{}
+                    try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.AutoClose = $RepairValue
+                        # Effectively changing the setting with $RepairValue
+                        $_.Alter()
+                    }
+                    catch {
+                        # Return Exception Message  to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message
+                    }
+                    # Forcing the setting to reflect the recent change
+                    $_.Refresh()
+                    # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
+                    $Return.RepairResult = $_.AutoClose -eq $RepairValue
+                    return $Return
+                }
+                # ------------------------------------------------ #
+                # Define the Pester check validation for a setting #
+                # Passed on: Get-DbcTestCase funtion               #
+                # ------------------------------------------------ #
+                $CheckBlock = {
+                    $_.AutoClose | Should -Be $ReferenceValue -Because "Because!"
+                }
+                # ----------------------------------------------- #
+                # Current state of a setting to be tested/checked #
+                # ----------------------------------------------- #
+                If ($CurrentConfig = ($connectioncheck.Databases.Where{if ($database) {$_.Name -in $database} else {$ExcludedDatabases -notcontains $_.Name}})) {
+                    # --------------------------------------------------------------------- #
+                    # Function Get-DbcTestCase formatting the expected output for TestCases #
+                    # --------------------------------------------------------------------- #
+                    $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property Name -RepairValue $TargetValue -ReferenceValue $autoclose
+                    # ---------------------- #
+                    # Pester check execution #
+                    # ---------------------- #
+                    It @TestCases "<Name> on $_ should have Auto Close set to $autoclose"
                 }
             }
         }
@@ -288,20 +296,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.AutoShrink = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.AutoShrink = $RepairValue
                         # Effectively changing the setting with $RepairValue
-                        $_.Alter()
+                        $_.Alter()                                               
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message
                     }
                     # Forcing the setting to reflect the recent change
-                    $_.Refresh()
+                    $_.Refresh() 
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.AutoShrink -eq $RepairValue
+                    $Return.RepairResult = $_.AutoShrink -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -350,20 +360,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.AutoCreateStatisticsEnabled = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.AutoCreateStatisticsEnabled = $RepairValue
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.AutoCreateStatisticsEnabled -eq $RepairValue
+                    $Return.RepairResult = $_.AutoCreateStatisticsEnabled -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -412,20 +424,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.AutoUpdateStatisticsEnabled = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.AutoUpdateStatisticsEnabled = $RepairValue
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message  
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.AutoUpdateStatisticsEnabled -eq $RepairValue
+                    $Return.RepairResult = $_.AutoUpdateStatisticsEnabled -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -475,20 +489,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.AutoUpdateStatisticsAsync = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.AutoUpdateStatisticsAsync = $RepairValue
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.AutoUpdateStatisticsAsync -eq $RepairValue
+                    $Return.RepairResult = $_.AutoUpdateStatisticsAsync -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
@@ -531,20 +547,22 @@ $ExcludedDatabases += $ExcludeDatabase
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # Change the setting with desired value from the $RepairValue
-                    $_.Trustworthy = $RepairValue
+                    [hashtable]$Return = @{}
                     try {
+                        # Change the setting with desired value from the $RepairValue
+                        $_.Trustworthy = $RepairValue
                         # Effectively changing the setting with $RepairValue
                         $_.Alter()
                     }
                     catch {
-                        # Return $false to the Repair-DbcCheck function when failing to change the setting
-                        return $false
+                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                        $Return.RepairErrorMsg = $_.Exception.Message  
                     }
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
                     # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                    return $_.Trustworthy -eq $RepairValue
+                    $Return.RepairResult = $_.Trustworthy -eq $RepairValue
+                    return $Return
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
