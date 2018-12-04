@@ -1,7 +1,7 @@
 [
     {
-        "TestName": "",                        
+        "TestName": "Trustworthy Option",                        
         "Instances": "",
-        "Job": [""]
+        "Database": "msdb"
     }
 ]

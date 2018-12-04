@@ -5,12 +5,13 @@ function Get-DbcTestCase {
 		[object[]]$InputObject,
 		[string[]]$Property,
 		[scriptblock]$CheckBlock,
-		[scriptblock]$FixBlock,
+		[scriptblock]$RepairBlock,
 		[string]$Type,
 		[string]$Target,
 		[string]$Name,
         [hashtable]$Arguments,
-		$TargetValue
+		$RepairValue,
+		$ReferenceValue
 	)
 	begin {
         $outputHash = @{}
@@ -24,10 +25,11 @@ function Get-DbcTestCase {
 			# Get type name from the input object if missing
 			if (!$Type) { $Type = $iObject.GetType().Name.Split('.')[-1] }
 			# Get target if not specified
-			if (!$Target) { $Target = [string]$iObject}
+            if ($Target) { $currentTarget = $Target }
+            else { $currentTarget = [string]$iObject}
             # Construct output hashtable
 
-			$testCaseHash = @{ InputObject = $iObject }
+			$testCaseHash = @{ _ = $iObject }
 			$argumentList = @()
 			if ($Property) {
 				$parsedObject = $iObject | Select-PSFObject -Property $Property
@@ -39,18 +41,21 @@ function Get-DbcTestCase {
 				$testCaseHash += @{ Type = $Type }
 			}
 			if ('Target' -notin $testCaseHash.Keys) {
-				$testCaseHash += @{ Target = $Target }
+				$testCaseHash += @{ Target = $currentTarget }
 			}
 
-			if ('TargetValue' -notin $testCaseHash.Keys) {
-				$testCaseHash += @{ TargetValue = $TargetValue}
+			if ('RepairValue' -notin $testCaseHash.Keys) {
+				$testCaseHash += @{ RepairValue = $RepairValue}
+			}
+			if ('ReferenceValue' -notin $testCaseHash.Keys) {
+				$testCaseHash += @{ ReferenceValue = $ReferenceValue}
             }
             if ($Arguments) {
                 $testCaseHash += $Arguments
             }
 			# Add Param block to the input scriptblocks
-			if ($FixBlock) {
-				if ($FixBlock.ast.FindAll( {$args[0] -is [System.Management.Automation.Language.ParamBlockAst]}, $true)) {
+			if ($RepairBlock) {
+				if ($RepairBlock.ast.FindAll( {$args[0] -is [System.Management.Automation.Language.ParamBlockAst]}, $true)) {
 					Stop-PSFFunction -Message "Param blocks inside ScriptBlocks are not supported" -Continue
 				}
 				else {
@@ -59,12 +64,16 @@ function Get-DbcTestCase {
 					foreach ($param in $paramList) {
 						$argumentList += $testCaseHash.$param
 					}
-					$paramBlock = "param(`$$($paramList -Join ", `$"))`r`n"
+					$fBlock = $RepairBlock.ToString()
+					if ($paramList) {
+						$fBlock = "param(`$$($paramList -Join ", `$"))`r`n" + $fBlock
+					}
 					$testCaseHash += @{
-						Fix = @{
-							ScriptBlock  = $ExecutionContext.InvokeCommand.NewScriptBlock($paramBlock + $FixBlock.ToString())
+						Repair = @{
+							ScriptBlock  = $ExecutionContext.InvokeCommand.NewScriptBlock($fBlock)
                             ArgumentList = $argumentList
-                            TargetValue = $testCaseHash.TargetValue
+							RepairValue = $testCaseHash.RepairValue
+							ReferenceValue = $testCaseHash.ReferenceValue
 						}
 					}
 				}
@@ -79,11 +88,14 @@ function Get-DbcTestCase {
             }
             else {
                 $paramList = $testCases[0].Keys
-                # if ($FixBlock) {
-                #     $paramList += 'Fix'
-                # }
-                $paramBlock = "param(`$$($paramList -Join ", `$"))`r`n"
-                $outputHash += @{ Test = $ExecutionContext.InvokeCommand.NewScriptBlock($paramBlock + $CheckBlock.ToString()) }
+                # if ($RepairBlock) {
+                #     $paramList += 'Repair'
+				# }
+				$sBlock = $CheckBlock.ToString()
+				if ($paramList) {
+					$sBlock = "param(`$$($paramList -Join ", `$"))`r`n" + $sBlock
+				}
+                $outputHash += @{ Test = $ExecutionContext.InvokeCommand.NewScriptBlock($sBlock) }
             }
         }
         $outputHash += @{ TestCases = $testCases}
