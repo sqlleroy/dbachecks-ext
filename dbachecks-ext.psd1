@@ -54,6 +54,6 @@
         'Repair-DbcCheck',
         'Get-DbcTestCase',
         'Get-DbcRepairValue',
-        'Update-DbcPowerBiDataSource'
+        'Export-DbcPowerBiDataSource'
     )
 }

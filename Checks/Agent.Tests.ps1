@@ -81,7 +81,7 @@
                     # ---------------------- #
                     # Pester check execution #
                     # ---------------------- #
-                    It @TestCases "Testing Database Mail XPs is set to $DatabaseMailEnabled on $psitem"
+                    It @TestCases "Testing Database Mail XPs is set to $DatabaseMailEnabled on <SqlInstance>"
                 }
             }
         }
@@ -313,7 +313,7 @@ Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
                         # ---------------------- #
                         # Pester check execution #
                         # ---------------------- #  
-                        It @TestCases "operator name <Name> exists"
+                        It @TestCases "operator name <Name> exists on <SQLInstance>"
                         
                         #Code block for Email Address
                         # --------------------------------------- #
@@ -351,11 +351,11 @@ Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
                         # --------------------------------------------------------------------- #
                         # Function Get-DbcTestCase formatting the expected output for TestCases #
                         # --------------------------------------------------------------------- #
-                        $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property EmailAddress -RepairValue $TargetValue -ReferenceValue $operatoremail
+                        $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property Name, EmailAddress -RepairValue $TargetValue -ReferenceValue $operatoremail
                         # ---------------------- #
                         # Pester check execution #
                         # ---------------------- #  
-                        It @TestCases "operator email <EmailAddress> is correct" 
+                        It @TestCases "operator's <Name> email <EmailAddress> is correct on <SQLInstance>" 
                     }
                     Else {
                         Write-Host "    There is no Operator" $operatorname "on" $Psitem"." -ForegroundColor DarkYellow
@@ -439,7 +439,7 @@ Describe "Failsafe Operator" -Tags FailsafeOperator, Operator, $filename {
                         # ---------------------- #
                         # Pester check execution #
                         # ---------------------- #  
-                        It @TestCases "failsafe operator <FailSafeOperator> on <Name> exists"
+                        It @TestCases "failsafe operator <FailSafeOperator> on <Name> exists on <SQLInstance>"
                     }
                 }
             }
@@ -528,6 +528,50 @@ Describe "Database Mail Profile" -Tags DatabaseMailProfile, $filename {
     }
 }
 
+Describe "Failed Jobs" -Tags FailedJob, $filename {
+    @(Get-Instance).ForEach{
+        if ($NotContactable -contains $psitem) {
+            Context "Checking for failed enabled jobs on $psitem" {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+        }
+        else {
+            try {
+                $connectioncheck = Connect-DbaInstance  -SqlInstance $Psitem -ErrorAction SilentlyContinue -ErrorVariable errorvar
+            }
+            catch {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+                    
+            if (($connectioncheck).Edition -like "Express Edition*") {}
+            elseif ($null -eq $connectioncheck.version) {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+            else {
+                Context "Checking for failed enabled jobs on $psitem" {
+                    @(Get-DbaAgentJob -SqlInstance $psitem | Where-Object IsEnabled).ForEach{
+                        if ($psitem.LastRunOutcome -eq "Unknown") {
+                            It -Skip "$psitem's last run outcome on $($psitem.SqlInstance) is unknown" {
+                                $psitem.LastRunOutcome | Should -Be "Succeeded" -Because 'All Agent Jobs should have succeed this one is unknown - you need to investigate the failed jobs'
+                            }
+                        }
+                        else {
+                            It "$psitem's last run outcome on $($psitem.SqlInstance) is $($psitem.LastRunOutcome)" {
+                                $psitem.LastRunOutcome | Should -Be "Succeeded" -Because 'All Agent Jobs should have succeed - you need to investigate the failed jobs'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
     @(Get-Instance).ForEach{
         if ($NotContactable -contains $psitem) {
@@ -601,6 +645,86 @@ Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
                         # Pester check execution #
                         # ---------------------- # 
                         It @TestCases "Job <Target> - owner <OwnerLoginName> should be in this list ( $( [String]::Join(", ", $targetowner) ) ) on <SqlInstance>"
+                    }
+                }
+            }
+        }
+    }
+}
+Describe "Agent Alerts" -Tags AgentAlert, $filename {
+    $severity = Get-DbcConfigValue agent.alert.Severity
+    $messageid = Get-DbcConfigValue agent.alert.messageid
+    $AgentAlertJob = Get-DbcConfigValue agent.alert.Job
+    $AgentAlertNotification = Get-DbcConfigValue agent.alert.Notification
+    @(Get-Instance).ForEach{
+        if ($NotContactable -contains $psitem) {
+            Context "Testing Agent Alerts Severity exists on $psitem" {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+            Context "Testing Agent Alerts MessageID exists on $psitem" {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+        }
+        else {
+            try {
+                $connectioncheck = Connect-DbaInstance  -SqlInstance $Psitem -ErrorAction SilentlyContinue -ErrorVariable errorvar
+            }
+            catch {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+                    
+            if (($connectioncheck).Edition -like "Express Edition*") {}
+            elseif ($null -eq $connectioncheck.version) {
+                It "Can't Connect to $Psitem" {
+                    $false  |  Should -BeTrue -Because "The instance should be available to be connected to!"
+                }
+            }
+            else {
+                $alerts = Get-DbaAgentAlert -SqlInstance $psitem
+                Context "Testing Agent Alerts Severity exists on $psitem" {
+                    ForEach ($sev in $severity) {
+                        It "$psitem should have Severity $sev Alert" {
+                            ($alerts.Where{$psitem.Severity -eq $sev}) | Should -be $true -Because "Recommended Agent Alerts to exists http://blog.extreme-advice.com/2013/01/29/list-of-errors-and-severity-level-in-sql-server-with-catalog-view-sysmessages/"
+                        }
+                        It "$psitem should have Severity $sev Alert enabled" {
+                            ($alerts.Where{$psitem.Severity -eq $sev}) | Should -be $true -Because "Configured alerts should be enabled"
+                        }
+                        if ($AgentAlertJob) {
+                            It "$psitem should have Jobname for Severity $sev Alert" {
+                                ($alerts.Where{$psitem.Severity -eq $sev}).jobname -ne $null | Should -be $true -Because "Should notify by SQL Agent Job"
+                            }
+                        }
+                        if ($AgentAlertNotification) {
+                            It "$psitem should have notification for Severity $sev Alert" {
+                                ($alerts.Where{$psitem.Severity -eq $sev}).HasNotification -in 1, 2, 3, 4, 5, 6, 7  | Should -be $true -Because "Should notify by Agent notifications"
+                            }
+                        }
+                    }
+                }
+                Context "Testing Agent Alerts MessageID exists on $psitem" {
+                    ForEach ($mid in $messageid) {
+                        It "$psitem should have Message_ID $mid Alert" {
+                            ($alerts.Where{$psitem.messageid -eq $mid}) | Should -be $true -Because "Recommended Agent Alerts to exists http://blog.extreme-advice.com/2013/01/29/list-of-errors-and-severity-level-in-sql-server-with-catalog-view-sysmessages/"
+                        }
+                        It "$psitem should have Message_ID $mid Alert enabled" {
+                            ($alerts.Where{$psitem.messageid -eq $mid}) | Should -be $true -Because "Configured alerts should be enabled"
+                        }
+                        if ($AgentAlertJob) {
+                            It "$psitem should have Job name for Message_ID $mid Alert" {
+                                ($alerts.Where{$psitem.messageid -eq $mid}).jobname -ne $null | Should -be $true -Because "Should notify by SQL Agent Job"
+                            }
+                        }
+                        if ($AgentAlertNotification) {
+                            It "$psitem should have notification for Message_ID $mid Alert" {
+                                ($alerts.Where{$psitem.messageid -eq $mid}).HasNotification -in 1, 2, 3, 4, 5, 6, 7 | Should -be $true -Because "Should notify by Agent notifications"
+                            }
+                        }
                     }
                 }
             }

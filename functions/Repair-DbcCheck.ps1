@@ -6,32 +6,48 @@ Function Repair-DbcCheck {
     )
     begin {
         [String[]]$ExpectedResult = ("Failed", "Fix Failed")
-        #Variable to control how to display the message in the Else clause in a foreach loop.
+        #Variable to control how to display the message in the Else clause in case there is no PSConfig defined for an specific Describe
         [string[]]$RepairPFSConfig = @()
+        #Variable to control how to display the message in the Else clause in case $TestResult.Parameters is empty
+        [string[]]$Describes = @()
     }
     Process {
         Foreach ($Result in $DbcchecksResult) {
             Foreach ($TestResult in ($Result.TestResult | Where-Object {$_.Result -in $ExpectedResult})) {
-                $Repair = $TestResult.Parameters.Repair
-                $Describe = ($TestResult.Describe).ToLower()
+                If (($TestResult.Parameters).Count -gt 0) {
 
-                If (Get-PSFConfigValue -Fullname dbachecks-ext.repair.$Describe) {
-                    $Execution = Invoke-Command -ArgumentList $Repair.ArgumentList -ScriptBlock $Repair.ScriptBlock
+                    $Repair = $TestResult.Parameters.Repair
+                    $Describe = ($TestResult.Describe).ToLower()
 
-                    If ($Execution.RepairResult) {
-                        $TestResult.Result = "Fixed"
-                        Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name NewValue -value $Repair.RepairValue
+                    If (Get-PSFConfigValue -Fullname dbachecks-ext.repair.$Describe) {
+                        $Execution = Invoke-Command -ArgumentList $Repair.ArgumentList -ScriptBlock $Repair.ScriptBlock
+
+                        If($Execution) {
+                            If ($Execution.RepairResult) {
+                                $TestResult.Result = "Fixed"
+                                Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name NewValue -value $Repair.RepairValue
+                            }
+                            Else {
+                                $TestResult.Result = "Fix Failed"
+                                Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name RepairErrorMsg -value $Execution.RepairErrorMsg
+                            }
+                            $TestResult
+                        }
+                        Else {
+                            Write-host "There are no tests to be repaired." -ForegroundColor DarkYellow
+                        }
                     }
                     Else {
-                        $TestResult.Result = "Fix Failed"
-                        Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name RepairErrorMsg -value $Execution.RepairErrorMsg
+                        if ($Describe -notin $RepairPFSConfig) {
+                            Write-Host "To repair the failing '$Describe' check, the PSFConfig value of the 'dbachecks-ext.repair.$Describe' must be set as True." -ForegroundColor DarkYellow
+                            $RepairPFSConfig += $Describe
+                        }
                     }
-                    $TestResult
                 }
                 Else {
-                    if ($Describe -notin $RepairPFSConfig) {
-                        Write-Host "To repair the failing '$Describe' check, the PSFConfig value of the 'dbachecks-ext.repair.$Describe' must be set as True." -ForegroundColor DarkYellow
-                        $RepairPFSConfig += $Describe
+                    If ($TestResult.Describe -notin $Describes) {
+                        Write-Host "The TestResult's 'Parameters' member is empty for the '$($TestResult.Describe)' check. Repair function is supported by the dbachecks-ext module." -ForegroundColor DarkYellow
+                        $Describes += $TestResult.Describe
                     }
                 }
             }

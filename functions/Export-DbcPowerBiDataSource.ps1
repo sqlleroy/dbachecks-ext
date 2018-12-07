@@ -75,7 +75,7 @@ points to C:\Windows\Temp (limitation of Power BI)
 https://dbachecks.readthedocs.io/en/latest/functions/Update-DbcPowerBiDataSource/
 
 #>
-function Update-DbcPowerBiDataSource {
+function Export-DbcPowerBiDataSource {
     [CmdletBinding()]
     param (
         [parameter(ValueFromPipeline, Mandatory)]
@@ -132,7 +132,7 @@ function Update-DbcPowerBiDataSource {
                 $InputObject.TestResult `
                     | Select-Object   Describe, Context,
                                     @{name="Object";expression={$_.Parameters.Target}},                                    
-                                    @{name="SqlInstance";expression={$_.Parameters.SqlInstance}},
+                                    @{name="SqlInstance";expression={$_.Parameters.SQLInstance}},
                                     @{name="Environment";expression={$Environment}}, 
                                     Result, @{name="Details";expression={$_.Name}}, NewSetting, Time `
                     | ConvertTo-Json | Out-File -FilePath $FilePath

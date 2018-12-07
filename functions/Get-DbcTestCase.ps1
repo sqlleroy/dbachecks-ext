@@ -43,9 +43,11 @@ function Get-DbcTestCase {
 			if ('Target' -notin $testCaseHash.Keys) {
 				$testCaseHash += @{ Target = $currentTarget }
 			}
-
 			if ('RepairValue' -notin $testCaseHash.Keys) {
 				$testCaseHash += @{ RepairValue = $RepairValue}
+			}
+			if ('SQLInstance' -notin $testCaseHash.Keys) {
+				$testCaseHash += @{ SQLInstance = $iObject.Parent.Name}
 			}
 			if ('ReferenceValue' -notin $testCaseHash.Keys) {
 				$testCaseHash += @{ ReferenceValue = $ReferenceValue}
