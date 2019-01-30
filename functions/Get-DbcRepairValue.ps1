@@ -3,18 +3,15 @@ Function Get-DbcRepairValue {
     param (
         [parameter(ValueFromPipeline = $true)]
         $Name,
-        $ArrayPosition
+        [int]$Position = 0
     )
     begin {
-        $Name = $Name.ToLower()
-        if (!$ArrayPosition) {
-            $ArrayPosition = 0
-        }
+        $Name = $Name.ToLower()        
     }
     Process {
         [string[]]$RepairValue = Get-PSFConfigValue -Fullname $Name
         If ($RepairValue) {
-            return $RepairValue[$ArrayPosition]
+            return $RepairValue[$Position]
         }
     }
 }
