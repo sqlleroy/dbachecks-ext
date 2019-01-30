@@ -13,7 +13,7 @@
     ModuleVersion          = '0.1.0'
 
     # Author of this module
-    Author                 = 'Leandro da Silva'
+    Author                 = 'Leandro da Silva and Kirill Kravtsov'
 
     # Company or vendor of this module
     CompanyName            = ''
@@ -52,6 +52,8 @@
     FunctionsToExport      = @(
         'Skip-DbcCheck',
         'Repair-DbcCheck',
-        'Get-DbcTestCase'
+        'Get-DbcTestCase',
+        'Get-DbcRepairValue',
+        'Export-DbcPowerBiDataSource'
     )
 }
