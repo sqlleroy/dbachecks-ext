@@ -20,22 +20,27 @@ Function Repair-DbcCheck {
                     $Describe = ($TestResult.Describe).ToLower()
 
                     If (Get-PSFConfigValue -Fullname dbachecks-ext.repair.$Describe) {
-                        $Execution = Invoke-Command -ArgumentList $Repair.ArgumentList -ScriptBlock $Repair.ScriptBlock
+                        Try {
+                            $Execution = Invoke-Command -ArgumentList $Repair.ArgumentList -ScriptBlock $Repair.ScriptBlock
+                        }
+                        catch {
+                            # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
+                            $RepairErrorMsg = $Execution.Exception.Message
+                        }
 
-                        If($Execution) {
-                            If ($Execution.RepairResult) {
-                                $TestResult.Result = "Fixed"
-                                Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name NewValue -value $Repair.RepairValue
-                            }
-                            Else {
-                                $TestResult.Result = "Fix Failed"
-                                Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name RepairErrorMsg -value $Execution.RepairErrorMsg
-                            }
+                        If ($Execution){
+                            $TestResult.Result = "Fixed"
+                            Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name NewValue -value $Repair.RepairValue
+                            $TestResult
+                        }
+                        Elseif ($RepairErrorMsg) {
+                            $TestResult.Result = "Fix Failed"
+                            Add-Member -Force -InputObject $TestResult -MemberType NoteProperty -Name RepairErrorMsg -value $RepairErrorMsg
                             $TestResult
                         }
                         Else {
                             Write-host "There are no tests to be repaired." -ForegroundColor DarkYellow
-                        }
+                        }                        
                     }
                     Else {
                         if ($Describe -notin $RepairPFSConfig) {

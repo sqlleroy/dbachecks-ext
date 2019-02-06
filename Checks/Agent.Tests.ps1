@@ -26,48 +26,28 @@
         }
         else {
             Context "Testing Testing Database Mail XPs  on $psitem" {
-                # PSFConfig with the desired value (can be an array)
-                [string[]]$DatabaseMailEnabled = Get-DbcConfigValue policy.security.DatabaseMailEnabled
-                # Function Get-DbcRepairValue to set which value from the above PSFConfig will be used as a repair value
-                [string]$TargetValue = Get-DbcRepairValue dbachecks.policy.security.DatabaseMailEnabled
+                # PSFConfig with the desired value
+                $DatabaseMailEnabled = Get-DbcConfigValue policy.security.DatabaseMailEnabled                
                 # --------------------------------------- #
                 # Change the setting to the desired value #
                 # Passed on: Get-DbcTestCase funtion      #
                 # Used on: Repair-DbcCheck function       #
                 # --------------------------------------- #
                 $RepairBlock = {
-                    # PSFConfig policy.security.DatabaseMailEnabled is set with a $True or $False value.
-                    # $_.DatabaseMailEnabled.ConfigValue expects "0" or "1" value, as INT data type.
-                    Switch ($RepairValue) {
-                        "True"  {[int]$RepairValue = 1}
-                        "False" {[int]$RepairValue = 0}                          
-                    }
-                    [hashtable]$Return = @{}
-                    try {
-                        # Change the setting with desired value from the $RepairValue
-                        $_.DatabaseMailEnabled.ConfigValue = $RepairValue
-                        # Effectively changing the setting with $RepairValue
-                        $_.Alter()
-                    }
-                    catch {
-                        # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                        $Return.RepairErrorMsg = $_.Exception.Message
-                    }
+                    # Change the setting with desired value from the $RepairValue
+                    $_.DatabaseMailEnabled.ConfigValue = $RepairValue
+                    # Effectively changing the setting with $RepairValue
+                    $_.Alter()                    
                     # Forcing the setting to reflect the recent change
                     $_.Refresh()
-                    # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue 
-                    $Return.RepairResult = $_.DatabaseMailEnabled.ConfigValue -eq $RepairValue
-                    return $Return
+                    # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue                     
+                    return $_.DatabaseMailEnabled.ConfigValue -eq $RepairValue
                 }
                 # ------------------------------------------------ #
                 # Define the Pester check validation for a setting #
                 # Passed on: Get-DbcTestCase funtion               #
                 # ------------------------------------------------ #
                 $checkBlock = {
-                    Switch ($_.DatabaseMailEnabled.ConfigValue) {
-                        0 {$ConfigValue = "False"} 
-                        1 {$ConfigValue = "True"}
-                    } 
                     $ConfigValue | Should -Be $ReferenceValue -Because 'The Database Mail XPS is required to send notifications.'
                 }
                 # ----------------------------------------------- #
@@ -77,7 +57,7 @@
                     # --------------------------------------------------------------------- #
                     # Function Get-DbcTestCase formatting the expected output for TestCases #                
                     # --------------------------------------------------------------------- #
-                    $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -RepairValue $TargetValue -ReferenceValue $DatabaseMailEnabled
+                    $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -RepairValue $DatabaseMailEnabled -ReferenceValue $DatabaseMailEnabled
                     # ---------------------- #
                     # Pester check execution #
                     # ---------------------- #
@@ -125,6 +105,8 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                 }
             }
             else {
+                $Server = ($connectioncheck.ComputerName | Get-Unique) 
+                $InstanceName = ($connectioncheck.ServiceName | Get-Unique)
                 Context "Testing SQL Agent is running on $psitem" {
                     # --------------------------------------- #
                     # Change the setting to the desired value #
@@ -132,20 +114,10 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                     # Used on: Repair-DbcCheck function       #
                     # --------------------------------------- #
                     $RepairBlock = {
-                        [hashtable]$Return = @{}
-                        try {
-                            # Effectively changing the setting with $RepairValue
-                            $_.Start()
-                            }
-                        catch {
-                            # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                            $Return.RepairErrorMsg = $_.Exception.Message
-                        }
-                        # Forcing the setting to reflect the recent change
-                        $_.Refresh()
+                        # Effectively changing the setting with $RepairValue
+                        $_.Start()                       
                         # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue 
-                        $Return.RepairResult = $_.State -eq $RepairValue
-                        return $Return
+                        return $_.State -eq $RepairValue
                     }
                     # ------------------------------------------------ #
                     # Define the Pester check validation for a setting #
@@ -157,7 +129,7 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                     # ----------------------------------------------- #
                     # Current state of a setting to be tested/checked #
                     # ----------------------------------------------- #
-                    If ($CurrentConfig = Get-DbaService -ComputerName $psitem -Type Agent) {
+                    If ($CurrentConfig = Get-DbaService -ComputerName  $Server -InstanceName $InstanceName -Type Agent) {
                         # --------------------------------------------------------------------- #
                         # Function Get-DbcTestCase formatting the expected output for TestCases #
                         # --------------------------------------------------------------------- #
@@ -175,20 +147,10 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                             # Used on: Repair-DbcCheck function       #
                             # --------------------------------------- #
                             $RepairBlock = {
-                                [hashtable]$Return = @{}
-                                Try {
-                                    # Effectively changing the setting with $RepairValue
-                                    $_.ChangeStartMode($RepairValue)
-                                }
-                                catch {
-                                    # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                                    $Return.RepairErrorMsg = $_.Exception.Message
-                                }
-                                # Forcing the setting to reflect the recent change
-                                $_.Refresh()
+                                # Effectively changing the setting with $RepairValue
+                                $_.ChangeStartMode($RepairValue)
                                 # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                                $Return.RepairResult = $_.StartMode -eq $RepairValue
-                                return $Return
+                                return $_.StartMode -eq $RepairValue
                             }
                             # ------------------------------------------------ #
                             # Define the Pester check validation for a setting #
@@ -213,20 +175,10 @@ Describe "SQL Agent Account" -Tags AgentServiceAccount, ServiceAccount, $filenam
                             # Used on: Repair-DbcCheck function       #
                             # --------------------------------------- #
                             $RepairBlock = {
-                                [hashtable]$Return = @{}
-                                Try {
-                                    # Effectively changing the setting with $RepairValue
-                                    $_.ChangeStartMode($RepairValue)
-                                }
-                                catch {
-                                    # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                                    $Return.RepairErrorMsg = $_.Exception.Message
-                                }
-                                # Forcing the setting to reflect the recent change
-                                $_.Refresh()
+                                # Effectively changing the setting with $RepairValue
+                                $_.ChangeStartMode($RepairValue)
                                 # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                                $Return.RepairResult = $_.StartMode -eq $RepairValue
-                                return $Return
+                                return $_.StartMode -eq $RepairValue
                             }
                             # ------------------------------------------------ #
                             # Define the Pester check validation for a setting #
@@ -291,10 +243,8 @@ Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
                         # Used on: Repair-DbcCheck function       #
                         # --------------------------------------- #
                         # **** There is no change for the operator name since it must exist ****
-                        $RepairBlock = {
-                            [hashtable]$Return = @{}
-                            $Return.RepairResult = $false
-                            return $Return
+                        $RepairBlock = {                            
+                            return $false
                         }
                         # ------------------------------------------------ #
                         # Define the Pester check validation for a setting #
@@ -322,22 +272,14 @@ Describe "DBA Operators" -Tags DbaOperator, Operator, $filename {
                         # Used on: Repair-DbcCheck function       #
                         # --------------------------------------- #
                         $RepairBlock = {
-                            [hashtable]$Return = @{}
-                            try {
-                                # Change the setting with desired value from the $RepairValue
-                                $_.EmailAddress = $RepairValue
-                                # Effectively changing the setting with $RepairValue
-                                $_.Alter()
-                            }
-                            catch {
-                                # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                                $Return.RepairErrorMsg = $_.Exception.Message
-                            }
+                            # Change the setting with desired value from the $RepairValue
+                            $_.EmailAddress = $RepairValue
+                            # Effectively changing the setting with $RepairValue
+                            $_.Alter()
                             # Forcing the setting to reflect the recent change
                             $_.Refresh()
                             # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                            $Return.RepairResult = $_.EmailAddress -eq $RepairValue
-                            return $Return
+                            return $_.EmailAddress -eq $RepairValue                            
                         }
                         # ------------------------------------------------ #
                         # Define the Pester check validation for a setting #
@@ -393,33 +335,23 @@ Describe "Failsafe Operator" -Tags FailsafeOperator, Operator, $filename {
             }
             else {
                 Context "Testing failsafe operator exists on $psitem" {
-                    # PSFConfig with the desired value (can be an array)
-                    [string[]]$failsafeoperator = Get-DbcConfigValue agent.failsafeoperator
-                    # Function Get-DbcRepairValue to set which value from the above PSFConfig will be used as a repair value
-                    [string]$TargetValue = Get-DbcRepairValue -Name dbachecks.agent.failsafeoperator -ArrayPosition 0
+                    # PSFConfig with the desired value
+                    $failsafeoperator = Get-DbcConfigValue agent.failsafeoperator                    
                     # --------------------------------------- #
                     # Change the setting to the desired value #
                     # Passed on: Get-DbcTestCase funtion      #
                     # Used on: Repair-DbcCheck function       #
                     # --------------------------------------- #
                     $RepairBlock = {
-                        [hashtable]$Return = @{}
-                        try {
-                            # Change the setting with desired value from the $RepairValue
-                            $_.FailSafeOperator = $RepairValue
-                            $_.NotificationMethod = "NotifyEmail"
-                            # Effectively changing the setting with $RepairValue
-                            $_.Alter()
-                        }
-                        catch {
-                            # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                            $Return.RepairErrorMsg = $_.Exception.Message
-                        }
+                        # Change the setting with desired value from the $RepairValue
+                        $_.FailSafeOperator = $RepairValue
+                        $_.NotificationMethod = "NotifyEmail"
+                        # Effectively changing the setting with $RepairValue
+                        $_.Alter()
                         # Forcing the setting to reflect the recent change
                         $_.Refresh()
                         # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                        $Return.RepairResult = $_.FailSafeOperator -eq $RepairValue
-                        return $Return
+                        return $_.FailSafeOperator -eq $RepairValue                        
                     }
                     # ------------------------------------------------ #
                     # Define the Pester check validation for a setting #
@@ -435,7 +367,7 @@ Describe "Failsafe Operator" -Tags FailsafeOperator, Operator, $filename {
                         # --------------------------------------------------------------------- #
                         # Function Get-DbcTestCase formatting the expected output for TestCases #
                         # --------------------------------------------------------------------- #
-                        $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property FailSafeOperator, Name -RepairValue $TargetValue -ReferenceValue $failsafeoperator
+                        $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property FailSafeOperator, Name -RepairValue $failsafeoperator -ReferenceValue $failsafeoperator
                         # ---------------------- #
                         # Pester check execution #
                         # ---------------------- #  
@@ -474,33 +406,23 @@ Describe "Database Mail Profile" -Tags DatabaseMailProfile, $filename {
             }
             else {
                 Context "Testing database mail profile is set on $psitem" {
-                    # PSFConfig with the desired value (can be an array)
-                    [string[]]$databasemailprofile = Get-DbcConfigValue  agent.databasemailprofile
-                    # Function Get-DbcRepairValue to set which value from the above PSFConfig will be used as a repair value
-                    [string]$TargetValue = Get-DbcRepairValue -Name dbachecks.agent.databasemailprofile -ArrayPosition 0
+                    # PSFConfig with the desired value
+                    $databasemailprofile = Get-DbcConfigValue  agent.databasemailprofile                    
                     # --------------------------------------- #
                     # Change the setting to the desired value #
                     # Passed on: Get-DbcTestCase funtion      #
                     # Used on: Repair-DbcCheck function       #
                     # --------------------------------------- #
                     $RepairBlock = {
-                        [hashtable]$Return = @{}
-                        try {
-                            # Change the setting with desired value from the $RepairValue
-                            $_.DatabaseMailProfile = $RepairValue
-                            $_.AgentMailType = "DatabaseMail"
-                            # Effectively changing the setting with $RepairValue
-                            $_.Alter()
-                        }
-                        catch {
-                            # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                            $Return.RepairErrorMsg = $_.Exception.Message
-                        }
+                        # Change the setting with desired value from the $RepairValue
+                        $_.DatabaseMailProfile = $RepairValue
+                        $_.AgentMailType = "DatabaseMail"
+                        # Effectively changing the setting with $RepairValue
+                        $_.Alter()
                         # Forcing the setting to reflect the recent change
                         $_.Refresh()
                         # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                        $Return.RepairResult = $_.DatabaseMailProfile -eq $RepairValue
-                        return $Return
+                        return $_.DatabaseMailProfile -eq $RepairValue                       
                     }
                     # ------------------------------------------------ #
                     # Define the Pester check validation for a setting #
@@ -516,7 +438,7 @@ Describe "Database Mail Profile" -Tags DatabaseMailProfile, $filename {
                         # --------------------------------------------------------------------- #
                         # Function Get-DbcTestCase formatting the expected output for TestCases #
                         # --------------------------------------------------------------------- #
-                        $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property DatabaseMailProfile, Name -RepairValue $TargetValue -ReferenceValue $databasemailprofile
+                        $TestCases = $CurrentConfig | Get-DbcTestCase -RepairBlock $RepairBlock -CheckBlock $checkBlock -Property DatabaseMailProfile, Name -RepairValue $databasemailprofile -ReferenceValue $databasemailprofile
                         # ---------------------- #
                         # Pester check execution #
                         # ---------------------- # 
@@ -609,22 +531,14 @@ Describe "Valid Job Owner" -Tags ValidJobOwner, $filename {
                     # Used on: Repair-DbcCheck function       #
                     # --------------------------------------- #
                     $RepairBlock = {
-                        [hashtable]$Return = @{}
-                        try {
-                            # Change the setting with desired value from the $RepairValue
-                            $_.OwnerLoginName = $RepairValue
-                            # Effectively changing the setting with $RepairValue
-                            $_.Alter()
-                        }
-                        catch {
-                            # Return Exception Message to the Repair-DbcCheck function when failing to change the setting
-                            $Return.RepairErrorMsg = $_.Exception.Message
-                        }
+                        # Change the setting with desired value from the $RepairValue
+                        $_.OwnerLoginName = $RepairValue
+                        # Effectively changing the setting with $RepairValue
+                        $_.Alter()
                         # Forcing the setting to reflect the recent change
                         $_.Refresh()
                         # Return to the Repair-DbcCheck function whether the current setting match the $RepairValue
-                        $Return.RepairResult = $_.OwnerLoginName -eq $RepairValue
-                        return $Return
+                        return $_.OwnerLoginName -eq $RepairValue                        
                     }
                     # ------------------------------------------------ #
                     # Define the Pester check validation for a setting #
