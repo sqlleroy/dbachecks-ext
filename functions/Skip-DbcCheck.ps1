@@ -29,13 +29,13 @@ Function Skip-DbcCheck {
         }
 
         # Collecting info regarding the number of the affected rows after execution
-        $after = ($skippedResults | Measure-Object).Count
-        
-        # Calculating the amount of rows skipped from this function
-        $skipped = $before - $after
+        $after = ($skippedResults | Measure-Object).Count               
 
-        If ($skipped -gt 0) {
-            Write-host "#"$skipped "tests were skipped." -ForegroundColor DarkYellow
+        # If there was any test skipped
+        If ($after -gt 0) {
+            # Calculating the amount of rows skipped from this function
+            $skipped = $before - $after
+            Write-host "#$skipped tests were skipped." -ForegroundColor DarkYellow
         }
         Else {
             Write-host "There are no tests to be skipped." -ForegroundColor DarkYellow
