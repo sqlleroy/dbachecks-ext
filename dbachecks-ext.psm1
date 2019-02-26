@@ -12,7 +12,7 @@ foreach ($file in (Get-ChildItem "$PSScriptRoot\functions")) {
 # --------------------------- #
 $ExclusionPath = "$PSScriptRoot\config\Exclusions\Exclusions.json" 
 Set-PSFConfig -Module dbachecks-ext -Name exclusion.filepath                                -Value $ExclusionPath   -Initialize -Description "PSFConfig to define Exclusion json file path."
-Set-PSFConfig -Module dbachecks-ext -Name "repair.sql agent account"                        -Value $true            -Initialize -Description "Repair Agent Account Services"
+Set-PSFConfig -Module dbachecks-ext -Name "repair.sql service"                              -Value $true            -Initialize -Description "Repair SQL Services"
 Set-PSFConfig -Module dbachecks-ext -Name "repair.valid job owner"                          -Value $true            -Initialize -Description "Repair Valid Job Owner"
 Set-PSFConfig -Module dbachecks-ext -Name "repair.dba operators"                            -Value $true            -Initialize -Description "Repair DBA Operators"
 Set-PSFConfig -Module dbachecks-ext -Name "repair.failsafe operator"                        -Value $true            -Initialize -Description "Repair Failsafe Operator"
